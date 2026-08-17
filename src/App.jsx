@@ -468,10 +468,12 @@ export default function App() {
   var filtered = useMemo(function(){
     return cands.filter(function(c){
       var s=search.toLowerCase();
-      return (s===""||c.name.toLowerCase().indexOf(s)!==-1||c.role.toLowerCase().indexOf(s)!==-1)
+      var accessOk=isAdmin||(c.assignedTo===currentUser.name||c.rec===currentUser.name);
+      return accessOk
+        &&(s===""||c.name.toLowerCase().indexOf(s)!==-1||c.role.toLowerCase().indexOf(s)!==-1)
         &&(fRole==="All"||c.role===fRole)&&(fDept==="All"||c.dept===fDept)&&(fLoc==="All"||c.loc===fLoc);
     });
-  },[cands,search,fRole,fDept,fLoc]);
+  },[cands,search,fRole,fDept,fLoc,isAdmin,currentUser]);
 
   function openDetail(c){setDetail(Object.assign({},c,{attachments:c.attachments||[],comments:c.comments||[]}));setEditNotes(c.notes);}
   function moveStage(id,stage){setCands(function(p){return p.map(function(c){return c.id===id?Object.assign({},c,{stage:stage}):c;});});setDetail(function(d){return d&&d.id===id?Object.assign({},d,{stage:stage}):d;});}
@@ -522,10 +524,11 @@ export default function App() {
 
   var analyticsFiltered = useMemo(function(){
     return cands.filter(function(c){
+      var accessOk=isAdmin||(c.assignedTo===currentUser.name||c.rec===currentUser.name);
       var mMatch = aMonth==="All"||(c.applied&&c.applied.slice(0,7)===aMonth);
-      return (aLoc==="All"||c.loc===aLoc)&&(aDept==="All"||c.dept===aDept)&&(aRole==="All"||c.role===aRole)&&mMatch;
+      return accessOk&&(aLoc==="All"||c.loc===aLoc)&&(aDept==="All"||c.dept===aDept)&&(aRole==="All"||c.role===aRole)&&mMatch;
     });
-  },[cands,aLoc,aDept,aRole,aMonth]);
+  },[cands,aLoc,aDept,aRole,aMonth,isAdmin,currentUser]);
 
   var stageData=STAGES.map(function(s){return {name:s.label,count:analyticsFiltered.filter(function(c){return c.stage===s.id;}).length,color:s.color};});
   var roleData=orgRoles.map(function(r){return {name:r,count:analyticsFiltered.filter(function(c){return c.role===r;}).length};}).filter(function(r){return r.count>0;});
@@ -1612,12 +1615,29 @@ export default function App() {
         <div style={{marginTop:-20}}>
           <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:18}}>
             <Avatar name={detail.name} size={46}/>
-            <div style={{flex:1}}><div style={{fontWeight:700,fontSize:17,color:"#111827"}}>{detail.name}</div><div style={{fontSize:12,color:"#6B7280"}}>{detail.role+" · "+detail.dept}</div></div>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:700,fontSize:17,color:"#111827"}}>{detail.name}</div>
+              <div style={{display:"flex",alignItems:"center",gap:6,marginTop:3,flexWrap:"wrap"}}>
+                {detail.company&&<span style={{fontSize:11,fontWeight:700,background:detail.company==="OTTO"?"#1C2B6B":detail.company==="Minister White"?"#8B1515":"#E8551A",color:"white",borderRadius:4,padding:"1px 7px"}}>{detail.company}</span>}
+                <span style={{fontSize:12,color:"#6B7280"}}>{[detail.role,detail.dept].filter(Boolean).join(" · ")||"—"}</span>
+              </div>
+            </div>
             <button onClick={function(){setDetail(null);}} style={{background:"#F3F4F6",border:"1px solid #E5E7EB",borderRadius:"50%",width:34,height:34,cursor:"pointer",fontSize:20,display:"flex",alignItems:"center",justifyContent:"center",color:"#6B7280",flexShrink:0}}>×</button>
           </div>
           <div style={{marginBottom:16}}><label style={lbl}>Move stage</label><div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{STAGES.map(function(s){return <button key={s.id} onClick={function(){moveStage(detail.id,s.id);}} style={{padding:"5px 10px",borderRadius:20,border:"2px solid "+s.color,fontSize:11,fontWeight:700,cursor:"pointer",background:detail.stage===s.id?s.color:"white",color:detail.stage===s.id?"white":s.color}}>{s.label}</button>;})}</div></div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:16}}>
-            {[["Email",detail.email],["Phone",detail.phone],["Location",detail.loc],["Experience",detail.exp],["Applied",detail.applied],["Recruiter",detail.rec||"—"]].map(function(m){return <div key={m[0]}><div style={{fontSize:10,fontWeight:600,color:"#9CA3AF",textTransform:"uppercase",marginBottom:2}}>{m[0]}</div><div style={{fontSize:13,color:"#111827"}}>{m[1]||"—"}</div></div>;})}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:16,background:"#F9FAFB",borderRadius:10,padding:"14px",border:"1px solid #E5E7EB"}}>
+            {[
+              ["Full Name",detail.name],
+              ["Company",detail.company||"—"],
+              ["Role",detail.role||"—"],
+              ["Department",detail.dept||"—"],
+              ["Location",detail.loc||"—"],
+              ["Experience",detail.exp||"—"],
+              ["Sourcing",detail.sourcing||"—"],
+              ["Phone",detail.phone||"—"],
+              ["Email",detail.email||"—"],
+            ].map(function(m){return <div key={m[0]}><div style={{fontSize:10,fontWeight:700,color:"#9CA3AF",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:3}}>{m[0]}</div><div style={{fontSize:13,color:"#111827",fontWeight:500}}>{m[1]||"—"}</div></div>;})}
+            <div><div style={{fontSize:10,fontWeight:700,color:"#9CA3AF",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:3}}>Applied</div><div style={{fontSize:13,color:"#111827",fontWeight:500}}>{detail.applied||"—"}</div></div>
           </div>
           <div style={{marginBottom:16}}><label style={lbl}>Assigned to (user working on this candidate)</label><input list="assign-users" value={detail.assignedTo!==undefined?detail.assignedTo:(detail.rec||"")} onChange={function(e){setDetail(Object.assign({},detail,{assignedTo:e.target.value}));}} style={inp} placeholder="HR user handling this candidate"/><datalist id="assign-users">{users.map(function(u){return <option key={u.username} value={u.name}/>;})}</datalist></div>
           <div style={{marginBottom:16}}><label style={lbl}>Resume</label><AttachmentsBox attachments={detail.attachments||[]} onChange={function(a){setDetail(Object.assign({},detail,{attachments:a}));}} resumeOnly={true}/></div>
