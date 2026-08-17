@@ -468,7 +468,8 @@ export default function App() {
   var filtered = useMemo(function(){
     return cands.filter(function(c){
       var s=search.toLowerCase();
-      var accessOk=isAdmin||(c.assignedTo===currentUser.name||c.rec===currentUser.name);
+      var uName=currentUser?currentUser.name:"";
+      var accessOk=isAdmin||c.assignedTo===uName||c.rec===uName;
       return accessOk
         &&(s===""||c.name.toLowerCase().indexOf(s)!==-1||c.role.toLowerCase().indexOf(s)!==-1)
         &&(fRole==="All"||c.role===fRole)&&(fDept==="All"||c.dept===fDept)&&(fLoc==="All"||c.loc===fLoc);
@@ -524,7 +525,8 @@ export default function App() {
 
   var analyticsFiltered = useMemo(function(){
     return cands.filter(function(c){
-      var accessOk=isAdmin||(c.assignedTo===currentUser.name||c.rec===currentUser.name);
+      var uName=currentUser?currentUser.name:"";
+      var accessOk=isAdmin||c.assignedTo===uName||c.rec===uName;
       var mMatch = aMonth==="All"||(c.applied&&c.applied.slice(0,7)===aMonth);
       return accessOk&&(aLoc==="All"||c.loc===aLoc)&&(aDept==="All"||c.dept===aDept)&&(aRole==="All"||c.role===aRole)&&mMatch;
     });
