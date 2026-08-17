@@ -532,6 +532,17 @@ export default function App() {
     });
   },[cands,aLoc,aDept,aRole,aMonth,isAdmin,currentUser]);
 
+  /* Visibility-scoped views — HR sees only their candidates everywhere */
+  var myCands = useMemo(function(){
+    var uName=currentUser?currentUser.name:"";
+    return isAdmin?cands:cands.filter(function(c){return c.assignedTo===uName||c.rec===uName;});
+  },[cands,isAdmin,currentUser]);
+  var myOnbPlans = useMemo(function(){
+    if(isAdmin)return onbPlans;
+    var myIds=new Set(myCands.map(function(c){return c.id;}));
+    return onbPlans.filter(function(p){return myIds.has(p.candidate.id);});
+  },[onbPlans,myCands,isAdmin]);
+
   var stageData=STAGES.map(function(s){return {name:s.label,count:analyticsFiltered.filter(function(c){return c.stage===s.id;}).length,color:s.color};});
   var roleData=orgRoles.map(function(r){return {name:r,count:analyticsFiltered.filter(function(c){return c.role===r;}).length};}).filter(function(r){return r.count>0;});
   var locData=orgLocs.map(function(l){return {name:l,count:analyticsFiltered.filter(function(c){return c.loc===l;}).length};}).filter(function(l){return l.count>0;});
@@ -554,9 +565,6 @@ export default function App() {
   if(!usersLoaded)return <div style={{minHeight:"100vh",background:NAVY,display:"flex",alignItems:"center",justifyContent:"center",color:GOLD,fontFamily:"Segoe UI,sans-serif"}}>Loading…</div>;
   if(!currentUser)return <LoginScreen logoDataUrl={logoDataUrl} users={users} onLogin={function(u){setCurrentUser(u);}}/>;
 
-  var ADMIN_ONLY_TABS=["stats","onboarding","onb-analytics","reports","orgsettings"];
-  if(!isAdmin&&ADMIN_ONLY_TABS.indexOf(tab)!==-1){setTab("pipeline");}
-
   function pctOf(p){var a=p.activities||[];return a.length?Math.round(a.filter(function(x){return x.done;}).length/a.length*100):0;}
 
   return (
@@ -574,9 +582,9 @@ export default function App() {
           </label>}
         </div>
         <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-          {[["pipeline","Pipeline"],["list","All Candidates"]].concat(isAdmin?[["stats","Analytics"],["onboarding","Onboarding"],["onb-analytics","Onb. Analytics"],["reports","Reports"],["orgsettings","⚙ Org Settings"]]:[]).map(function(pair){
+          {[["pipeline","Pipeline"],["list","All Candidates"],["stats","Analytics"],["onboarding","Onboarding"],["onb-analytics","Onb. Analytics"],["reports","Reports"]].concat(isAdmin?[["orgsettings","⚙ Org Settings"]]:[]).map(function(pair){
             var id=pair[0],label=pair[1];
-            var badge=(id==="onboarding"&&onbPlans.length>0)?" ("+onbPlans.length+")":"";
+            var badge=(id==="onboarding"&&myOnbPlans.length>0)?" ("+myOnbPlans.length+")":"";
             return <button key={id} onClick={function(){setTab(id);}} style={{padding:"5px 12px",borderRadius:20,border:"none",cursor:"pointer",fontSize:12,fontWeight:600,background:tab===id?GOLD:((id==="onboarding"&&onbPlans.length>0)?"rgba(255,192,0,0.25)":(id==="orgsettings"?"rgba(255,192,0,0.15)":"rgba(255,255,255,0.1)")),color:tab===id?NAVY:"rgba(255,255,255,0.85)"}}>{label+badge}</button>;
           })}
         </div>
@@ -846,12 +854,12 @@ export default function App() {
         </div>}
 
         {/* ONBOARDING */}
-        {tab==="onboarding"&&(onbPlans.length===0
+        {tab==="onboarding"&&(myOnbPlans.length===0
           ?<div style={{background:"white",borderRadius:16,padding:48,textAlign:"center",boxShadow:"0 1px 4px rgba(0,0,0,0.07)"}}><div style={{fontSize:44,marginBottom:14}}>🎓</div><div style={{fontWeight:700,fontSize:16,color:NAVY,marginBottom:8}}>No onboarding plans yet</div><div style={{fontSize:13,color:"#6B7280",maxWidth:380,margin:"0 auto 20px"}}>Select candidates using checkboxes, then click "Start Onboarding".</div><button onClick={function(){setTab("pipeline");}} style={{background:NAVY,color:"white",border:"none",borderRadius:8,padding:"10px 20px",fontWeight:600,fontSize:13,cursor:"pointer"}}>← Go to Pipeline</button></div>
           :<div>
             <input placeholder="🔍 Search by name, employee ID, role, or reporting manager…" value={onbSearch} onChange={function(e){setOnbSearch(e.target.value);}} style={{...inp,maxWidth:520,marginBottom:14}}/>
             <div style={{display:"flex",gap:8,marginBottom:18,flexWrap:"wrap"}}>
-              {[["all","All",onbPlans.length],["pending","🕗 Pending",onbPlans.filter(function(p){return pctOf(p)!==100;}).length],["completed","✓ Completed",onbPlans.filter(function(p){return pctOf(p)===100;}).length]].map(function(seg){
+              {[["all","All",myOnbPlans.length],["pending","🕗 Pending",myOnbPlans.filter(function(p){return pctOf(p)!==100;}).length],["completed","✓ Completed",myOnbPlans.filter(function(p){return pctOf(p)===100;}).length]].map(function(seg){
                 var active=onbFilter===seg[0];
                 var accent=seg[0]==="completed"?"#059669":(seg[0]==="pending"?"#B45309":NAVY);
                 return <button key={seg[0]} onClick={function(){setOnbFilter(seg[0]);}} style={{padding:"8px 16px",borderRadius:30,border:"1.5px solid "+(active?accent:"#E5E7EB"),background:active?accent:"white",color:active?"white":"#374151",fontWeight:700,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",gap:7}}>{seg[1]}<span style={{background:active?"rgba(255,255,255,0.25)":"#F3F4F6",color:active?"white":"#6B7280",borderRadius:20,padding:"1px 8px",fontSize:11}}>{seg[2]}</span></button>;
@@ -859,7 +867,7 @@ export default function App() {
             </div>
             {(function(){
               var q=onbSearch.toLowerCase().trim();
-              var matched=onbPlans.filter(function(p){return q===""||((p.candidate.name+" "+p.candidate.role+" "+(p.empId||"")+" "+(p.reportingManager||"")+" "+(p.manager||"")).toLowerCase().indexOf(q)!==-1);});
+              var matched=myOnbPlans.filter(function(p){return q===""||((p.candidate.name+" "+p.candidate.role+" "+(p.empId||"")+" "+(p.reportingManager||"")+" "+(p.manager||"")).toLowerCase().indexOf(q)!==-1);});
               var pendingAll=matched.filter(function(p){return pctOf(p)!==100;});
               var completedAll=matched.filter(function(p){return pctOf(p)===100;});
               function Section(items){return <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(280px,1fr))",gap:16}}>{items.map(function(p){return <OnbCard key={p.id} plan={p} onTrack={function(x){setActivityPlan(x);}} onDelete={function(id){setOnbPlans(function(prev){return prev.filter(function(x){return x.id!==id;});});}}/>;})}</div>;}
@@ -875,18 +883,18 @@ export default function App() {
         {/* REPORTS */}
         {tab==="reports"&&(function(){
           var today2=new Date();today2.setHours(0,0,0,0);
-          var totalActs=onbPlans.reduce(function(s,p){return s+(p.activities||[]).length;},0);
-          var doneActs=onbPlans.reduce(function(s,p){return s+(p.activities||[]).filter(function(a){return a.done;}).length;},0);
-          var pendingCount=onbPlans.reduce(function(s,p){return s+(p.activities||[]).filter(function(a){return !a.done;}).length;},0);
-          var overdueCount=onbPlans.reduce(function(s,p){return s+(p.activities||[]).filter(function(a){return !a.done&&a.due&&new Date(a.due)<today2;}).length;},0);
+          var totalActs=myOnbPlans.reduce(function(s,p){return s+(p.activities||[]).length;},0);
+          var doneActs=myOnbPlans.reduce(function(s,p){return s+(p.activities||[]).filter(function(a){return a.done;}).length;},0);
+          var pendingCount=myOnbPlans.reduce(function(s,p){return s+(p.activities||[]).filter(function(a){return !a.done;}).length;},0);
+          var overdueCount=myOnbPlans.reduce(function(s,p){return s+(p.activities||[]).filter(function(a){return !a.done&&a.due&&new Date(a.due)<today2;}).length;},0);
           var accountableMap={};
-          onbPlans.forEach(function(p){(p.activities||[]).filter(function(a){return !a.done;}).forEach(function(a){var k=a.accountable||"Unassigned";accountableMap[k]=(accountableMap[k]||0)+1;});});
+          myOnbPlans.forEach(function(p){(p.activities||[]).filter(function(a){return !a.done;}).forEach(function(a){var k=a.accountable||"Unassigned";accountableMap[k]=(accountableMap[k]||0)+1;});});
           var uniqueAccountable=Object.keys(accountableMap).length;
           var today3=new Date().toISOString().split("T")[0];
-          function dlCands(){var headers=["Candidate","Role","Department","Location","Stage","Email","Phone","Experience","Recruiter","Handled By (User)","Applied Date","Resume Attached","Comments"];var rows=cands.map(function(c){var st=STAGES.filter(function(s){return s.id===c.stage;})[0];return [c.name,c.role,c.dept,c.loc,st?st.label:c.stage,c.email,c.phone,c.exp,c.rec,(c.assignedTo||c.rec||"—"),c.applied,(c.attachments||[]).length>0?"Yes":"No",(c.comments||[]).length];});downloadXlsx("OCPL_Candidate_Report_"+today3+".xlsx","Candidates",headers,rows);}
-          function dlOnbSummary(){var headers=["Candidate","Employee ID","Role","Handled By (User)","Reporting Manager","Onboarding Manager","Joining Date","Total Activities","Completed","Pending","Progress %","Started By","Created On"];var rows=onbPlans.map(function(p){var acts=p.activities||[];var done=acts.filter(function(a){return a.done;}).length;var pct=acts.length?Math.round(done/acts.length*100):0;return [p.candidate.name,p.empId||"",p.candidate.role,(p.candidate.assignedTo||p.candidate.rec||p.by||"—"),p.reportingManager||"",p.manager||"",p.startDate||"",acts.length,done,acts.length-done,pct,p.by||"",p.generatedAt||""];});downloadXlsx("OCPL_Onboarding_Report_"+today3+".xlsx","Onboarding Summary",headers,rows);}
-          function dlOnbDetail(){var headers=["Candidate","Employee ID","Reporting Manager","Joining Date","Activity","Accountable","Due Date","Status","Completed On","Reference No."];var rows=[];onbPlans.forEach(function(p){(p.activities||[]).forEach(function(a){var isRef=a.activity==="UAN Creation"||a.activity==="ESI Creation";rows.push([p.candidate.name,p.empId||"",p.reportingManager||"",p.startDate||"",a.activity,a.accountable,a.due||"",a.done?"Done":"Pending",a.done?(a.completedOn||""):"",(isRef?(a.refNumber||"—"):"N/A")]);});});downloadXlsx("OCPL_Onboarding_Activities_"+today3+".xlsx","Activities",headers,rows);}
-          function dlPending(){var headers=["Accountable Person","Candidate","Employee ID","Role","Activity","Due Date","Joining Date","Onboarding Manager","Days Overdue"];var rows=[];onbPlans.forEach(function(p){(p.activities||[]).filter(function(a){return !a.done;}).forEach(function(a){var overdue="";if(a.due){var d=new Date(a.due);d.setHours(0,0,0,0);var diff=Math.floor((today2-d)/(1000*60*60*24));overdue=diff>0?(diff+" days overdue"):(diff===0?"Due today":"");}rows.push([a.accountable||"Unassigned",p.candidate.name,p.empId||"",p.candidate.role,a.activity,a.due||"",p.startDate||"",p.manager||"",overdue]);});});rows.sort(function(x,y){return (x[0]||"").localeCompare(y[0]||"");});downloadXlsx("OCPL_Pending_Tasks_By_Accountable_"+today3+".xlsx","Pending Tasks",headers,rows);}
+          function dlCands(){var headers=["Candidate","Role","Department","Location","Stage","Email","Phone","Experience","Recruiter","Handled By (User)","Applied Date","Resume Attached","Comments"];var rows=myCands.map(function(c){var st=STAGES.filter(function(s){return s.id===c.stage;})[0];return [c.name,c.role,c.dept,c.loc,st?st.label:c.stage,c.email,c.phone,c.exp,c.rec,(c.assignedTo||c.rec||"—"),c.applied,(c.attachments||[]).length>0?"Yes":"No",(c.comments||[]).length];});downloadXlsx("OCPL_Candidate_Report_"+today3+".xlsx","Candidates",headers,rows);}
+          function dlOnbSummary(){var headers=["Candidate","Employee ID","Role","Handled By (User)","Reporting Manager","Onboarding Manager","Joining Date","Total Activities","Completed","Pending","Progress %","Started By","Created On"];var rows=myOnbPlans.map(function(p){var acts=p.activities||[];var done=acts.filter(function(a){return a.done;}).length;var pct=acts.length?Math.round(done/acts.length*100):0;return [p.candidate.name,p.empId||"",p.candidate.role,(p.candidate.assignedTo||p.candidate.rec||p.by||"—"),p.reportingManager||"",p.manager||"",p.startDate||"",acts.length,done,acts.length-done,pct,p.by||"",p.generatedAt||""];});downloadXlsx("OCPL_Onboarding_Report_"+today3+".xlsx","Onboarding Summary",headers,rows);}
+          function dlOnbDetail(){var headers=["Candidate","Employee ID","Reporting Manager","Joining Date","Activity","Accountable","Due Date","Status","Completed On","Reference No."];var rows=[];myOnbPlans.forEach(function(p){(p.activities||[]).forEach(function(a){var isRef=a.activity==="UAN Creation"||a.activity==="ESI Creation";rows.push([p.candidate.name,p.empId||"",p.reportingManager||"",p.startDate||"",a.activity,a.accountable,a.due||"",a.done?"Done":"Pending",a.done?(a.completedOn||""):"",(isRef?(a.refNumber||"—"):"N/A")]);});});downloadXlsx("OCPL_Onboarding_Activities_"+today3+".xlsx","Activities",headers,rows);}
+          function dlPending(){var headers=["Accountable Person","Candidate","Employee ID","Role","Activity","Due Date","Joining Date","Onboarding Manager","Days Overdue"];var rows=[];myOnbPlans.forEach(function(p){(p.activities||[]).filter(function(a){return !a.done;}).forEach(function(a){var overdue="";if(a.due){var d=new Date(a.due);d.setHours(0,0,0,0);var diff=Math.floor((today2-d)/(1000*60*60*24));overdue=diff>0?(diff+" days overdue"):(diff===0?"Due today":"");}rows.push([a.accountable||"Unassigned",p.candidate.name,p.empId||"",p.candidate.role,a.activity,a.due||"",p.startDate||"",p.manager||"",overdue]);});});rows.sort(function(x,y){return (x[0]||"").localeCompare(y[0]||"");});downloadXlsx("OCPL_Pending_Tasks_By_Accountable_"+today3+".xlsx","Pending Tasks",headers,rows);}
           return (
             <div>
               <div style={{fontSize:20,fontWeight:800,color:NAVY,marginBottom:4}}>Reports</div>
@@ -895,7 +903,7 @@ export default function App() {
                 <div style={{background:"white",borderRadius:14,border:"1px solid #E5E7EB",boxShadow:"0 1px 6px rgba(0,0,0,0.08)",overflow:"hidden"}}>
                   <div style={{background:NAVY,padding:"16px 18px"}}><div style={{color:GOLD,fontWeight:700,fontSize:15}}>📊 Candidate Report</div><div style={{color:"rgba(255,255,255,0.6)",fontSize:11,marginTop:2}}>Full pipeline export</div></div>
                   <div style={{padding:18}}>
-                    <div style={{fontSize:13,color:"#374151",lineHeight:1.7,marginBottom:14}}>All <strong>{cands.length}</strong> candidates with role, department, location, stage, contacts, recruiter, handled-by user, resume & comment count.</div>
+                    <div style={{fontSize:13,color:"#374151",lineHeight:1.7,marginBottom:14}}>All <strong>{myCands.length}</strong> candidates with role, department, location, stage, contacts, recruiter, handled-by user, resume & comment count.</div>
                     <div style={{display:"flex",gap:10,marginBottom:14}}>
                       {[["Candidates",cands.length,NAVY],["Joined",cands.filter(function(c){return c.stage==="joined";}).length,"#059669"],["In Interview",cands.filter(function(c){return ["interview1","interview2","interview3"].indexOf(c.stage)!==-1;}).length,"#7C3AED"]].map(function(m){return <div key={m[0]} style={{flex:1,background:"#F9FAFB",borderRadius:8,padding:"10px 12px",textAlign:"center"}}><div style={{fontSize:22,fontWeight:800,color:m[2]}}>{m[1]}</div><div style={{fontSize:10,color:"#6B7280"}}>{m[0]}</div></div>;})}</div>
                     <button onClick={dlCands} style={{width:"100%",background:"#1D6F42",color:"white",border:"none",borderRadius:8,padding:"11px 0",fontWeight:700,fontSize:13,cursor:"pointer"}}>⬇ Download Candidate Report (Excel)</button>
@@ -940,7 +948,7 @@ export default function App() {
           var today = new Date(); today.setHours(0,0,0,0);
 
           /* ── derived per-plan metrics ── */
-          var plans = onbPlans.map(function(p){
+          var plans = myOnbPlans.map(function(p){
             var acts = p.activities||[];
             var done = acts.filter(function(a){return a.done;}).length;
             var pct  = acts.length ? Math.round(done/acts.length*100) : 0;
