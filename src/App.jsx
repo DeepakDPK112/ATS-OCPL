@@ -452,6 +452,9 @@ export default function App() {
   var aRoleS = useState("All"); var aRole = aRoleS[0]; var setARole = aRoleS[1];
   var aMonthS= useState("All"); var aMonth= aMonthS[0];var setAMonth= aMonthS[1];
   var suS = useState(false); var showUsers = suS[0]; var setShowUsers = suS[1];
+  var rpuS = useState(null); var resetPwdUser = rpuS[0]; var setResetPwdUser = rpuS[1];
+  var rpvS = useState(""); var resetPwdVal = rpvS[0]; var setResetPwdVal = rpvS[1];
+  var rpeS = useState(""); var resetPwdErr = rpeS[0]; var setResetPwdErr = rpeS[1];
   var smS = useState(false); var showMenu = smS[0]; var setShowMenu = smS[1];
   var sbulkS = useState(false); var showBulk = sbulkS[0]; var setShowBulk = sbulkS[1];
   var bulkRowsS = useState([]); var bulkRows = bulkRowsS[0]; var setBulkRows = bulkRowsS[1];
@@ -545,6 +548,12 @@ export default function App() {
   }
   function removeUser(u){if(u===currentUser.username)return;persistUsers(users.filter(function(x){return x.username!==u;}));}
   function toggleRole(u){persistUsers(users.map(function(x){return x.username===u?Object.assign({},x,{role:x.role==="Admin"?"HR":"Admin"}):x;}));}
+  function doResetPwd(){
+    if(!resetPwdVal.trim()){setResetPwdErr("Enter a new password.");return;}
+    if(resetPwdVal.trim().length<6){setResetPwdErr("Password must be at least 6 characters.");return;}
+    persistUsers(users.map(function(x){return x.username===resetPwdUser?Object.assign({},x,{password:resetPwdVal.trim()}):x;}));
+    setResetPwdUser(null);setResetPwdVal("");setResetPwdErr("");
+  }
 
   function generateOnboarding(){
     if(!onbForm.startDate||!onbForm.manager||!onbForm.empId.trim()||!onbForm.reportingManager.trim())return;
@@ -1596,12 +1605,25 @@ export default function App() {
         <div style={{marginBottom:18}}>
           <div style={{fontSize:12,fontWeight:700,color:"#6B7280",textTransform:"uppercase",letterSpacing:0.4,marginBottom:10}}>{"Current users ("+users.length+")"}</div>
           <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            {users.map(function(u){return(
-              <div key={u.username} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:"#F9FAFB",borderRadius:10,border:"1px solid #E5E7EB"}}>
-                <Avatar name={u.name} size={34}/>
-                <div style={{flex:1,minWidth:0}}><div style={{fontWeight:600,fontSize:13}}>{u.name+(u.username===currentUser.username?" (you)":"")}</div><div style={{fontSize:11,color:"#9CA3AF"}}>{"@"+u.username+" · "+(u.email||"no email")}</div></div>
-                <button onClick={function(){toggleRole(u.username);}} disabled={u.username===currentUser.username} style={{background:u.role==="Admin"?"#FEF3C7":"#EFF6FF",color:u.role==="Admin"?"#92400E":"#1D4ED8",border:"none",borderRadius:20,padding:"4px 12px",fontSize:11,fontWeight:700,cursor:u.username===currentUser.username?"default":"pointer",opacity:u.username===currentUser.username?0.6:1}}>{u.role}</button>
-                <button onClick={function(){removeUser(u.username);}} disabled={u.username===currentUser.username} style={{background:"#FEF2F2",color:"#DC2626",border:"1px solid #FECACA",borderRadius:6,padding:"4px 9px",fontSize:11,cursor:u.username===currentUser.username?"not-allowed":"pointer",fontWeight:600,opacity:u.username===currentUser.username?0.4:1}}>Remove</button>
+            {users.map(function(u){
+              var isMe=u.username===currentUser.username;
+              var resetting=resetPwdUser===u.username;
+              return(
+              <div key={u.username} style={{background:"#F9FAFB",borderRadius:10,border:"1px solid "+(resetting?"#BFDBFE":"#E5E7EB"),overflow:"hidden"}}>
+                <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px"}}>
+                  <Avatar name={u.name} size={34}/>
+                  <div style={{flex:1,minWidth:0}}><div style={{fontWeight:600,fontSize:13}}>{u.name+(isMe?" (you)":"")}</div><div style={{fontSize:11,color:"#9CA3AF"}}>{"@"+u.username+" · "+(u.email||"no email")}</div></div>
+                  <button onClick={function(){toggleRole(u.username);}} disabled={isMe} style={{background:u.role==="Admin"?"#FEF3C7":"#EFF6FF",color:u.role==="Admin"?"#92400E":"#1D4ED8",border:"none",borderRadius:20,padding:"4px 12px",fontSize:11,fontWeight:700,cursor:isMe?"default":"pointer",opacity:isMe?0.6:1}}>{u.role}</button>
+                  <button onClick={function(){if(resetting){setResetPwdUser(null);setResetPwdVal("");setResetPwdErr("");}else{setResetPwdUser(u.username);setResetPwdVal("");setResetPwdErr("");}}} disabled={isMe} style={{background:resetting?"#EFF6FF":"#F0FDF4",color:resetting?"#1D4ED8":"#059669",border:"1px solid "+(resetting?"#BFDBFE":"#BBF7D0"),borderRadius:6,padding:"4px 9px",fontSize:11,cursor:isMe?"not-allowed":"pointer",fontWeight:600,opacity:isMe?0.4:1}}>🔑 {resetting?"Cancel":"Reset"}</button>
+                  <button onClick={function(){removeUser(u.username);}} disabled={isMe} style={{background:"#FEF2F2",color:"#DC2626",border:"1px solid #FECACA",borderRadius:6,padding:"4px 9px",fontSize:11,cursor:isMe?"not-allowed":"pointer",fontWeight:600,opacity:isMe?0.4:1}}>Remove</button>
+                </div>
+                {resetting&&<div style={{borderTop:"1px solid #BFDBFE",background:"#EFF6FF",padding:"10px 12px",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                  <span style={{fontSize:12,color:"#1D4ED8",fontWeight:600,whiteSpace:"nowrap"}}>New password for {u.name.split(" ")[0]}:</span>
+                  <input autoFocus value={resetPwdVal} onChange={function(e){setResetPwdVal(e.target.value);setResetPwdErr("");}} onKeyDown={function(e){if(e.key==="Enter")doResetPwd();if(e.key==="Escape"){setResetPwdUser(null);setResetPwdVal("");setResetPwdErr("");}}}
+                    type="password" placeholder="Min 6 characters" style={{...inp,flex:1,minWidth:140,padding:"6px 10px",fontSize:12,borderColor:resetPwdErr?"#DC2626":"#BFDBFE"}}/>
+                  <button onClick={doResetPwd} style={{background:NAVY,color:"white",border:"none",borderRadius:6,padding:"6px 14px",fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>Save</button>
+                  {resetPwdErr&&<div style={{width:"100%",fontSize:11,color:"#DC2626",fontWeight:600,marginTop:2}}>{"⚠ "+resetPwdErr}</div>}
+                </div>}
               </div>
             );})}
           </div>
