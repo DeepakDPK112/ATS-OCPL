@@ -23,6 +23,7 @@ var DEFAULT_DEPTS = ["Retail Operations","Human Resources","Visual Merchandising
 var DEFAULT_LOCS  = ["Chennai","Bangalore","Mumbai","Hyderabad","Coimbatore","Kochi"];
 var DEFAULT_COMPANIES = ["OTTO","Minister White","Clarke Gable"];
 var DEFAULT_EXP_OPTIONS = ["Fresher","0-1 year","1-2 years","2-3 years","3-5 years","5-8 years","8-10 years","10+ years"];
+var DEFAULT_SOURCING = ["Referral","Social media","Organic"];
 
 var INIT = [
   { id:1, name:"Priya Ramesh",    role:"Store Executive",     dept:"Retail Operations",    loc:"Chennai",    stage:"sourced",     applied:"2026-06-10", email:"priya.r@email.com",   phone:"9876543210", exp:"2 years",   notes:"Strong retail background",    rec:"Meena K",   attachments:[], comments:[], assignedTo:"Meena K",   company:"OTTO" },
@@ -367,7 +368,7 @@ export default function App() {
     (async function(){
       try{ var r=await supabase.from('app_settings').select('value').eq('key','ocpl-users').single(); if(r.data)setUsers(JSON.parse(r.data.value)); }catch(e){}
       try{ var r2=await supabase.from('app_settings').select('value').eq('key','ocpl-logo').single(); if(r2.data)setLogoDataUrl(r2.data.value); }catch(e){}
-      try{ var r3=await supabase.from('app_settings').select('value').eq('key','ocpl-org-settings').single(); if(r3.data){var s=JSON.parse(r3.data.value);if(s.roles)setOrgRoles(s.roles);if(s.depts)setOrgDepts(s.depts);if(s.locs)setOrgLocs(s.locs);if(s.comp)setOrgComp(s.comp);if(s.exp)setOrgExp(s.exp);} }catch(e){}
+      try{ var r3=await supabase.from('app_settings').select('value').eq('key','ocpl-org-settings').single(); if(r3.data){var s=JSON.parse(r3.data.value);if(s.roles)setOrgRoles(s.roles);if(s.depts)setOrgDepts(s.depts);if(s.locs)setOrgLocs(s.locs);if(s.comp)setOrgComp(s.comp);if(s.exp)setOrgExp(s.exp);if(s.sourcing)setOrgSourcing(s.sourcing);} }catch(e){}
       try{ var r4=await supabase.from('candidates').select('data'); if(r4.data&&r4.data.length>0)setCands(r4.data.map(function(row){return row.data;})); }catch(e){}
       try{ var r5=await supabase.from('onboarding_plans').select('data'); if(r5.data&&r5.data.length>0)setOnbPlans(r5.data.map(function(row){return row.data;})); }catch(e){}
       setUsersLoaded(true);
@@ -420,8 +421,8 @@ export default function App() {
   }
 
   async function persistUsers(next){setUsers(next);try{await supabase.from('app_settings').upsert({key:'ocpl-users',value:JSON.stringify(next)});}catch(e){}}
-  async function persistOrg(roles,depts,locs,comp,exp){
-    try{await supabase.from('app_settings').upsert({key:'ocpl-org-settings',value:JSON.stringify({roles,depts,locs,comp,exp})});}catch(e){}
+  async function persistOrg(roles,depts,locs,comp,exp,sourcing){
+    try{await supabase.from('app_settings').upsert({key:'ocpl-org-settings',value:JSON.stringify({roles,depts,locs,comp,exp,sourcing})});}catch(e){}
   }
 
   var candsS = useState(INIT); var cands = candsS[0]; var setCands = candsS[1];
@@ -435,7 +436,7 @@ export default function App() {
   var enS = useState(""); var editNotes = enS[0]; var setEditNotes = enS[1];
   var faS = useState([]); var formAttachments = faS[0]; var setFormAttachments = faS[1];
   var feS = useState(""); var formErr = feS[0]; var setFormErr = feS[1];
-  var formS = useState({name:"",company:"",role:"",dept:"",loc:"",stage:"sourced",email:"",phone:"",exp:"",notes:""}); var form = formS[0]; var setForm = formS[1];
+  var formS = useState({name:"",company:"",role:"",dept:"",loc:"",stage:"sourced",email:"",phone:"",exp:"",sourcing:"",notes:""}); var form = formS[0]; var setForm = formS[1];
   var selS = useState(new Set()); var selected = selS[0]; var setSelected = selS[1];
   var sofS = useState(false); var showOnbForm = sofS[0]; var setShowOnbForm = sofS[1];
   var onbFormS = useState({empId:"",reportingManager:"",startDate:"",manager:"",buddy:"",itContact:"IT Department"}); var onbForm = onbFormS[0]; var setOnbForm = onbFormS[1];
@@ -459,6 +460,7 @@ export default function App() {
   var orgLocsS  = useState(DEFAULT_LOCS);  var orgLocs  = orgLocsS[0];  var setOrgLocs  = orgLocsS[1];
   var orgCompS  = useState(DEFAULT_COMPANIES); var orgComp = orgCompS[0]; var setOrgComp = orgCompS[1];
   var orgExpS   = useState(DEFAULT_EXP_OPTIONS); var orgExp = orgExpS[0]; var setOrgExp = orgExpS[1];
+  var orgSourcingS = useState(DEFAULT_SOURCING); var orgSourcing = orgSourcingS[0]; var setOrgSourcing = orgSourcingS[1];
   var soS = useState(false); var showOrgSettings = soS[0]; var setShowOrgSettings = soS[1];
 
   var isAdmin = currentUser && currentUser.role==="Admin";
@@ -484,7 +486,7 @@ export default function App() {
     setFormErr("");
     setCands(function(p){return p.concat([Object.assign({},form,{id:Date.now(),applied:new Date().toISOString().split("T")[0],attachments:formAttachments,comments:[],rec:currentUser.name,assignedTo:currentUser.name})]);});
     setShowAdd(false);setFormAttachments([]);
-    setForm({name:"",company:"",role:"",dept:"",loc:"",stage:"sourced",email:"",phone:"",exp:"",notes:""});
+    setForm({name:"",company:"",role:"",dept:"",loc:"",stage:"sourced",email:"",phone:"",exp:"",sourcing:"",notes:""});
   }
   function toggleSel(id,e){e.stopPropagation();setSelected(function(prev){var n=new Set(prev);if(n.has(id))n.delete(id);else n.add(id);return n;});}
   function addUser(){
@@ -1323,12 +1325,12 @@ export default function App() {
               if(!v||items.indexOf(v)!==-1)return;
               var next=items.concat([v]);
               setItems(next);setNewVal("");
-              persistOrg(props.isRole?next:orgRoles,props.isDept?next:orgDepts,props.isLoc?next:orgLocs,props.isComp?next:orgComp,props.isExp?next:orgExp);
+              persistOrg(props.isRole?next:orgRoles,props.isDept?next:orgDepts,props.isLoc?next:orgLocs,props.isComp?next:orgComp,props.isExp?next:orgExp,props.isSourcing?next:orgSourcing);
             }
             function remove(i){
               var next=items.filter(function(_,j){return j!==i;});
               setItems(next);
-              persistOrg(props.isRole?next:orgRoles,props.isDept?next:orgDepts,props.isLoc?next:orgLocs,props.isComp?next:orgComp,props.isExp?next:orgExp);
+              persistOrg(props.isRole?next:orgRoles,props.isDept?next:orgDepts,props.isLoc?next:orgLocs,props.isComp?next:orgComp,props.isExp?next:orgExp,props.isSourcing?next:orgSourcing);
             }
             function startEdit(i){setEditIdx(i);setEditVal(items[i]);}
             function saveEdit(i){
@@ -1336,12 +1338,12 @@ export default function App() {
               if(!v){setEditIdx(null);return;}
               var next=items.map(function(x,j){return j===i?v:x;});
               setItems(next);setEditIdx(null);
-              persistOrg(props.isRole?next:orgRoles,props.isDept?next:orgDepts,props.isLoc?next:orgLocs,props.isComp?next:orgComp,props.isExp?next:orgExp);
+              persistOrg(props.isRole?next:orgRoles,props.isDept?next:orgDepts,props.isLoc?next:orgLocs,props.isComp?next:orgComp,props.isExp?next:orgExp,props.isSourcing?next:orgSourcing);
             }
             function doReset(){
-              var def=props.isRole?DEFAULT_ROLES:props.isDept?DEFAULT_DEPTS:props.isLoc?DEFAULT_LOCS:props.isComp?DEFAULT_COMPANIES:DEFAULT_EXP_OPTIONS;
+              var def=props.isRole?DEFAULT_ROLES:props.isDept?DEFAULT_DEPTS:props.isLoc?DEFAULT_LOCS:props.isComp?DEFAULT_COMPANIES:props.isExp?DEFAULT_EXP_OPTIONS:DEFAULT_SOURCING;
               setItems(def);setShowConfirm(false);
-              persistOrg(props.isRole?def:orgRoles,props.isDept?def:orgDepts,props.isLoc?def:orgLocs,props.isComp?def:orgComp,props.isExp?def:orgExp);
+              persistOrg(props.isRole?def:orgRoles,props.isDept?def:orgDepts,props.isLoc?def:orgLocs,props.isComp?def:orgComp,props.isExp?def:orgExp,props.isSourcing?def:orgSourcing);
             }
             return (
               <div style={{background:"white",borderRadius:14,border:"1px solid #E5E7EB",boxShadow:"0 1px 6px rgba(0,0,0,0.07)",overflow:"hidden",position:"relative"}}>
@@ -1402,6 +1404,7 @@ export default function App() {
                 <ListEditor title="Cities / Locations" icon="📍" accent="#059669" items={orgLocs}  setItems={setOrgLocs}  isLoc={true}/>
                 <ListEditor title="Companies / Brands" icon="🏷" accent="#8B1515" items={orgComp}  setItems={setOrgComp}  isComp={true}/>
                 <ListEditor title="Experience Options" icon="⏱" accent="#7C3AED" items={orgExp}   setItems={setOrgExp}   isExp={true}/>
+                <ListEditor title="Sourcing" icon="📣" accent="#0891B2" items={orgSourcing} setItems={setOrgSourcing} isSourcing={true}/>
               </div>
             </div>
           );
@@ -1693,6 +1696,16 @@ export default function App() {
               style={{...inp,cursor:"pointer",borderColor:formErr==="Experience is required."?"#DC2626":"#D1D5DB",color:form.exp?"#111827":"#9CA3AF"}}>
               <option value="" disabled>Select experience</option>
               {orgExp.map(function(x){return <option key={x} value={x}>{x}</option>;})}
+            </select>
+          </div>
+
+          {/* Sourcing */}
+          <div>
+            <label style={lbl}>Sourcing</label>
+            <select value={form.sourcing} onChange={function(e){setForm(Object.assign({},form,{sourcing:e.target.value}));setFormErr("");}}
+              style={{...inp,cursor:"pointer",color:form.sourcing?"#111827":"#9CA3AF"}}>
+              <option value="">Select sourcing</option>
+              {orgSourcing.map(function(s){return <option key={s} value={s}>{s}</option>;})}
             </select>
           </div>
 
