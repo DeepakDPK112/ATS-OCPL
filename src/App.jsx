@@ -453,6 +453,9 @@ export default function App() {
   var aMonthS= useState("All"); var aMonth= aMonthS[0];var setAMonth= aMonthS[1];
   var suS = useState(false); var showUsers = suS[0]; var setShowUsers = suS[1];
   var smS = useState(false); var showMenu = smS[0]; var setShowMenu = smS[1];
+  var sbulkS = useState(false); var showBulk = sbulkS[0]; var setShowBulk = sbulkS[1];
+  var bulkRowsS = useState([]); var bulkRows = bulkRowsS[0]; var setBulkRows = bulkRowsS[1];
+  var bulkErrS = useState(""); var bulkErr = bulkErrS[0]; var setBulkErr = bulkErrS[1];
   var nuS = useState({username:"",password:"",name:"",email:"",role:"HR"}); var newUser = nuS[0]; var setNewUser = nuS[1];
   var ueS = useState(""); var userErr = ueS[0]; var setUserErr = ueS[1];
   var orgRolesS = useState(DEFAULT_ROLES); var orgRoles = orgRolesS[0]; var setOrgRoles = orgRolesS[1];
@@ -491,6 +494,48 @@ export default function App() {
     setShowAdd(false);setFormAttachments([]);
     setForm({name:"",company:"",role:"",dept:"",loc:"",stage:"sourced",email:"",phone:"",exp:"",sourcing:"",notes:""});
   }
+  /* ── Bulk Excel import ── */
+  var BULK_COLS=["Name","Company","Role","Department","Location","Phone","Email","Experience","Sourcing","Stage","Notes"];
+  var BULK_REQUIRED=["Name","Company","Department","Phone"];
+  var STAGE_MAP={"sourced":"sourced","screened":"screened","interview 1":"interview1","interview1":"interview1","interview 2":"interview2","interview2":"interview2","interview 3":"interview3","interview3":"interview3","shortlisted":"shortlisted","joined":"joined","rejected":"rejected","backed off":"backedoff","backedoff":"backedoff"};
+  function downloadBulkTemplate(){
+    var sample=[["Priya R","OTTO","Store Executive","EBO - Tamil Nadu","Chennai","9876543210","priya@email.com","2 years","Referral","sourced","Strong candidate"]];
+    downloadXlsx("OCPL_Candidate_Upload_Template.xlsx","Candidates",BULK_COLS,sample);
+  }
+  function parseBulkFile(file){
+    setBulkErr("");setBulkRows([]);
+    var reader=new FileReader();
+    reader.onload=function(e){
+      try{
+        var wb=XLSX.read(e.target.result,{type:"array"});
+        var ws=wb.Sheets[wb.SheetNames[0]];
+        var data=XLSX.utils.sheet_to_json(ws,{defval:""});
+        if(!data.length){setBulkErr("The sheet is empty.");return;}
+        var rows=data.map(function(row,i){
+          var get=function(k){return String(row[k]||row[k.toLowerCase()]||row[k.toUpperCase()]||"").trim();};
+          var name=get("Name"),company=get("Company"),role=get("Role"),dept=get("Department"),loc=get("Location"),phone=get("Phone"),email=get("Email"),exp=get("Experience"),sourcing=get("Sourcing"),stageRaw=get("Stage"),notes=get("Notes");
+          var errs=[];
+          if(!name)errs.push("Name required");
+          if(!company)errs.push("Company required");
+          if(!dept)errs.push("Department required");
+          if(!phone)errs.push("Phone required");
+          var stage=STAGE_MAP[stageRaw.toLowerCase()]||"sourced";
+          return {_row:i+2,_errs:errs,name:name,company:company,role:role,dept:dept,loc:loc,phone:phone,email:email,exp:exp,sourcing:sourcing,stage:stage,notes:notes};
+        });
+        setBulkRows(rows);
+      }catch(ex){setBulkErr("Could not read file. Make sure it is a valid .xlsx or .xls file.");}
+    };
+    reader.readAsArrayBuffer(file);
+  }
+  function commitBulk(){
+    var valid=bulkRows.filter(function(r){return r._errs.length===0;});
+    if(!valid.length)return;
+    var today=new Date().toISOString().split("T")[0];
+    var newCands=valid.map(function(r){return {id:Date.now()+Math.random(),name:r.name,company:r.company,role:r.role,dept:r.dept,loc:r.loc,phone:r.phone,email:r.email,exp:r.exp,sourcing:r.sourcing,stage:r.stage,notes:r.notes,applied:today,attachments:[],comments:[],rec:currentUser.name,assignedTo:currentUser.name};});
+    setCands(function(p){return p.concat(newCands);});
+    setShowBulk(false);setBulkRows([]);setBulkErr("");
+  }
+
   function toggleSel(id,e){e.stopPropagation();setSelected(function(prev){var n=new Set(prev);if(n.has(id))n.delete(id);else n.add(id);return n;});}
   function addUser(){
     if(!newUser.username.trim()||!newUser.password.trim()||!newUser.name.trim()){setUserErr("Username, password and name required");return;}
@@ -589,6 +634,7 @@ export default function App() {
           })}
         </div>
         <div style={{display:"flex",gap:10,alignItems:"center"}}>
+          <button onClick={function(){setShowBulk(true);}} style={{background:"rgba(255,255,255,0.15)",color:"white",border:"1px solid rgba(255,255,255,0.35)",borderRadius:8,padding:"7px 14px",fontWeight:600,fontSize:12,cursor:"pointer"}}>📤 Upload Excel</button>
           <button onClick={function(){setShowAdd(true);}} style={{background:GOLD,color:NAVY,border:"none",borderRadius:8,padding:"7px 14px",fontWeight:700,fontSize:12,cursor:"pointer"}}>+ Add Candidate</button>
           <div style={{position:"relative"}}>
             <button onClick={function(e){e.stopPropagation();setShowMenu(function(s){return !s;});}} style={{display:"flex",alignItems:"center",gap:8,background:"rgba(255,255,255,0.1)",border:"none",borderRadius:30,padding:"4px 10px 4px 4px",cursor:"pointer"}}>
@@ -1664,6 +1710,78 @@ export default function App() {
             <button onClick={function(){deleteC(detail.id);}} style={{background:"#FEF2F2",color:"#DC2626",border:"1px solid #FECACA",borderRadius:8,padding:"10px 14px",fontWeight:600,fontSize:13,cursor:"pointer"}}>Delete</button>
           </div>
         </div>
+      </Modal>}
+
+      {/* BULK UPLOAD MODAL */}
+      {showBulk&&<Modal onClose={function(){setShowBulk(false);setBulkRows([]);setBulkErr("");}} title="Upload Candidates — Excel" maxWidth={820}>
+        {/* Instructions + template download */}
+        <div style={{background:"#F0F9FF",border:"1px solid #BAE6FD",borderRadius:10,padding:"12px 16px",marginBottom:16}}>
+          <div style={{fontWeight:700,fontSize:13,color:"#0369A1",marginBottom:6}}>How to upload</div>
+          <ol style={{fontSize:12,color:"#374151",lineHeight:1.8,paddingLeft:18,margin:0}}>
+            <li>Download the template below — it has all the required columns with a sample row.</li>
+            <li>Fill in your candidate details. <strong>Name, Company, Department, Phone</strong> are required. All other columns are optional.</li>
+            <li>For <strong>Stage</strong>: use one of — Sourced, Screened, Interview 1, Interview 2, Interview 3, Shortlisted, Joined, Rejected, Backed off. Defaults to Sourced if blank.</li>
+            <li>Upload the filled file below. Review the preview, then click Import.</li>
+          </ol>
+          <button onClick={downloadBulkTemplate} style={{marginTop:10,background:NAVY,color:"white",border:"none",borderRadius:6,padding:"7px 16px",fontSize:12,fontWeight:700,cursor:"pointer"}}>📥 Download Template</button>
+        </div>
+
+        {/* File picker */}
+        <label style={{display:"flex",alignItems:"center",gap:12,border:"2px dashed #D1D5DB",borderRadius:10,padding:"16px 20px",cursor:"pointer",background:"#FAFAFA",marginBottom:16}}>
+          <span style={{fontSize:28}}>📂</span>
+          <div><div style={{fontWeight:600,fontSize:13,color:NAVY}}>Click to choose Excel file</div><div style={{fontSize:11,color:"#9CA3AF",marginTop:2}}>Supports .xlsx and .xls</div></div>
+          <input type="file" accept=".xlsx,.xls" style={{display:"none"}} onChange={function(e){if(e.target.files[0])parseBulkFile(e.target.files[0]);e.target.value="";}}/>
+        </label>
+
+        {bulkErr&&<div style={{background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:8,padding:"10px 14px",fontSize:13,color:"#DC2626",fontWeight:600,marginBottom:12}}>⚠ {bulkErr}</div>}
+
+        {/* Preview table */}
+        {bulkRows.length>0&&(function(){
+          var valid=bulkRows.filter(function(r){return r._errs.length===0;});
+          var invalid=bulkRows.filter(function(r){return r._errs.length>0;});
+          return <div>
+            <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:10,flexWrap:"wrap"}}>
+              <div style={{fontWeight:700,fontSize:13,color:NAVY}}>Preview — {bulkRows.length} row{bulkRows.length!==1?"s":""} found</div>
+              {valid.length>0&&<span style={{background:"#ECFDF5",color:"#059669",borderRadius:20,padding:"2px 10px",fontSize:11,fontWeight:700}}>✓ {valid.length} valid</span>}
+              {invalid.length>0&&<span style={{background:"#FEF2F2",color:"#DC2626",borderRadius:20,padding:"2px 10px",fontSize:11,fontWeight:700}}>✕ {invalid.length} with errors (will be skipped)</span>}
+            </div>
+            <div style={{overflowX:"auto",borderRadius:8,border:"1px solid #E5E7EB",marginBottom:16}}>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                <thead>
+                  <tr style={{background:NAVY}}>
+                    {["Row","Status","Name","Company","Role","Dept","Location","Phone","Email","Exp","Stage","Sourcing","Notes"].map(function(h){return <th key={h} style={{color:"white",padding:"8px 10px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>{h}</th>;})}
+                  </tr>
+                </thead>
+                <tbody>
+                  {bulkRows.map(function(r){
+                    var ok=r._errs.length===0;
+                    var bg=ok?"white":"#FEF9F9";
+                    var stLabel=STAGES.filter(function(s){return s.id===r.stage;})[0];
+                    return <tr key={r._row} style={{background:bg,borderBottom:"1px solid #F3F4F6"}}>
+                      <td style={{padding:"7px 10px",color:"#9CA3AF"}}>{r._row}</td>
+                      <td style={{padding:"7px 10px"}}>{ok?<span style={{color:"#059669",fontWeight:700}}>✓</span>:<span style={{color:"#DC2626",fontSize:11,fontWeight:600}} title={r._errs.join(", ")}>✕ {r._errs.join(", ")}</span>}</td>
+                      <td style={{padding:"7px 10px",fontWeight:ok?600:400,color:ok?"#111827":"#9CA3AF"}}>{r.name||"—"}</td>
+                      <td style={{padding:"7px 10px"}}>{r.company||"—"}</td>
+                      <td style={{padding:"7px 10px"}}>{r.role||"—"}</td>
+                      <td style={{padding:"7px 10px"}}>{r.dept||"—"}</td>
+                      <td style={{padding:"7px 10px"}}>{r.loc||"—"}</td>
+                      <td style={{padding:"7px 10px"}}>{r.phone||"—"}</td>
+                      <td style={{padding:"7px 10px"}}>{r.email||"—"}</td>
+                      <td style={{padding:"7px 10px"}}>{r.exp||"—"}</td>
+                      <td style={{padding:"7px 10px"}}>{stLabel?stLabel.label:r.stage}</td>
+                      <td style={{padding:"7px 10px"}}>{r.sourcing||"—"}</td>
+                      <td style={{padding:"7px 10px",maxWidth:140,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.notes||"—"}</td>
+                    </tr>;
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+              <button onClick={function(){setBulkRows([]);setBulkErr("");}} style={{background:"#F3F4F6",color:"#374151",border:"none",borderRadius:8,padding:"10px 18px",fontWeight:600,fontSize:13,cursor:"pointer"}}>Clear</button>
+              <button onClick={commitBulk} disabled={valid.length===0} style={{background:valid.length>0?NAVY:"#D1D5DB",color:"white",border:"none",borderRadius:8,padding:"10px 22px",fontWeight:700,fontSize:13,cursor:valid.length>0?"pointer":"not-allowed"}}>{"Import "+valid.length+" Candidate"+(valid.length!==1?"s":"")}</button>
+            </div>
+          </div>;
+        })()}
       </Modal>}
 
       {/* ADD CANDIDATE */}
