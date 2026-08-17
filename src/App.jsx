@@ -554,6 +554,9 @@ export default function App() {
   if(!usersLoaded)return <div style={{minHeight:"100vh",background:NAVY,display:"flex",alignItems:"center",justifyContent:"center",color:GOLD,fontFamily:"Segoe UI,sans-serif"}}>Loading…</div>;
   if(!currentUser)return <LoginScreen logoDataUrl={logoDataUrl} users={users} onLogin={function(u){setCurrentUser(u);}}/>;
 
+  var ADMIN_ONLY_TABS=["stats","onboarding","onb-analytics","reports","orgsettings"];
+  if(!isAdmin&&ADMIN_ONLY_TABS.indexOf(tab)!==-1){setTab("pipeline");}
+
   function pctOf(p){var a=p.activities||[];return a.length?Math.round(a.filter(function(x){return x.done;}).length/a.length*100):0;}
 
   return (
@@ -571,7 +574,7 @@ export default function App() {
           </label>}
         </div>
         <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-          {[["pipeline","Pipeline"],["list","All Candidates"],["stats","Analytics"],["onboarding","Onboarding"],["onb-analytics","Onb. Analytics"],["reports","Reports"]].concat(isAdmin?[["orgsettings","⚙ Org Settings"]]:[]).map(function(pair){
+          {[["pipeline","Pipeline"],["list","All Candidates"]].concat(isAdmin?[["stats","Analytics"],["onboarding","Onboarding"],["onb-analytics","Onb. Analytics"],["reports","Reports"],["orgsettings","⚙ Org Settings"]]:[]).map(function(pair){
             var id=pair[0],label=pair[1];
             var badge=(id==="onboarding"&&onbPlans.length>0)?" ("+onbPlans.length+")":"";
             return <button key={id} onClick={function(){setTab(id);}} style={{padding:"5px 12px",borderRadius:20,border:"none",cursor:"pointer",fontSize:12,fontWeight:600,background:tab===id?GOLD:((id==="onboarding"&&onbPlans.length>0)?"rgba(255,192,0,0.25)":(id==="orgsettings"?"rgba(255,192,0,0.15)":"rgba(255,255,255,0.1)")),color:tab===id?NAVY:"rgba(255,255,255,0.85)"}}>{label+badge}</button>;
