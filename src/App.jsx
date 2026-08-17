@@ -478,9 +478,7 @@ export default function App() {
   function addC(){
     if(!form.name.trim()){setFormErr("Full name is required.");return;}
     if(!form.company){setFormErr("Company is required.");return;}
-    if(!form.role){setFormErr("Role is required.");return;}
     if(!form.dept){setFormErr("Department is required.");return;}
-    if(!form.loc){setFormErr("Location is required.");return;}
     if(!form.exp){setFormErr("Experience is required.");return;}
     if(!form.phone.trim()){setFormErr("Phone number is required.");return;}
     setFormErr("");
@@ -1660,12 +1658,12 @@ export default function App() {
 
           {/* Role */}
           <div>
-            <label style={lbl}>Role <span style={{color:"#DC2626"}}>*</span></label>
-            <select value={form.role} onChange={function(e){setForm(Object.assign({},form,{role:e.target.value}));setFormErr("");}}
-              style={{...inp,cursor:"pointer",borderColor:formErr==="Role is required."?"#DC2626":"#D1D5DB",color:form.role?"#111827":"#9CA3AF"}}>
-              <option value="" disabled>Select role</option>
-              {orgRoles.map(function(r){return <option key={r} value={r}>{r}</option>;})}
-            </select>
+            <label style={lbl}>Role</label>
+            <input value={form.role} onChange={function(e){setForm(Object.assign({},form,{role:e.target.value}));setFormErr("");}}
+              list="roleOptions" style={inp} placeholder="Type role"/>
+            <datalist id="roleOptions">
+              {orgRoles.map(function(r){return <option key={r} value={r}/>;})}
+            </datalist>
           </div>
 
           {/* Department */}
@@ -1680,12 +1678,12 @@ export default function App() {
 
           {/* Location */}
           <div>
-            <label style={lbl}>Location <span style={{color:"#DC2626"}}>*</span></label>
-            <select value={form.loc} onChange={function(e){setForm(Object.assign({},form,{loc:e.target.value}));setFormErr("");}}
-              style={{...inp,cursor:"pointer",borderColor:formErr==="Location is required."?"#DC2626":"#D1D5DB",color:form.loc?"#111827":"#9CA3AF"}}>
-              <option value="" disabled>Select city</option>
-              {orgLocs.map(function(l){return <option key={l} value={l}>{l}</option>;})}
-            </select>
+            <label style={lbl}>Location</label>
+            <input value={form.loc} onChange={function(e){setForm(Object.assign({},form,{loc:e.target.value}));setFormErr("");}}
+              list="locOptions" style={inp} placeholder="Type city / location"/>
+            <datalist id="locOptions">
+              {orgLocs.map(function(l){return <option key={l} value={l}/>;})}
+            </datalist>
           </div>
 
           {/* Experience */}
