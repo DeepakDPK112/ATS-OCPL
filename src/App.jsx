@@ -451,6 +451,7 @@ export default function App() {
   var aDeptS = useState("All"); var aDept = aDeptS[0]; var setADept = aDeptS[1];
   var aRoleS = useState("All"); var aRole = aRoleS[0]; var setARole = aRoleS[1];
   var aMonthS= useState("All"); var aMonth= aMonthS[0];var setAMonth= aMonthS[1];
+  var aUserS = useState("All"); var aUser  = aUserS[0]; var setAUser  = aUserS[1];
   var suS = useState(false); var showUsers = suS[0]; var setShowUsers = suS[1];
   var rpuS = useState(null); var resetPwdUser = rpuS[0]; var setResetPwdUser = rpuS[1];
   var rpvS = useState(""); var resetPwdVal = rpvS[0]; var setResetPwdVal = rpvS[1];
@@ -582,9 +583,10 @@ export default function App() {
       var uName=currentUser?currentUser.name:"";
       var accessOk=isAdmin||c.assignedTo===uName||c.rec===uName;
       var mMatch = aMonth==="All"||(c.applied&&c.applied.slice(0,7)===aMonth);
-      return accessOk&&(aLoc==="All"||c.loc===aLoc)&&(aDept==="All"||c.dept===aDept)&&(aRole==="All"||c.role===aRole)&&mMatch;
+      var userMatch = aUser==="All"||(c.rec===aUser||c.assignedTo===aUser);
+      return accessOk&&userMatch&&(aLoc==="All"||c.loc===aLoc)&&(aDept==="All"||c.dept===aDept)&&(aRole==="All"||c.role===aRole)&&mMatch;
     });
-  },[cands,aLoc,aDept,aRole,aMonth,isAdmin,currentUser]);
+  },[cands,aLoc,aDept,aRole,aMonth,aUser,isAdmin,currentUser]);
 
   /* Visibility-scoped views — HR sees only their candidates everywhere */
   var myCands = useMemo(function(){
@@ -605,13 +607,13 @@ export default function App() {
     var base=aMonth==="All"?MONTHS_LIST:MONTHS_LIST;
     return base.map(function(m){
       var label=new Date(m+"-01").toLocaleDateString("en-IN",{month:"short",year:"2-digit"});
-      var mc=cands.filter(function(c){return c.applied&&c.applied.slice(0,7)===m&&(aLoc==="All"||c.loc===aLoc)&&(aDept==="All"||c.dept===aDept)&&(aRole==="All"||c.role===aRole);});
+      var mc=cands.filter(function(c){return c.applied&&c.applied.slice(0,7)===m&&(aLoc==="All"||c.loc===aLoc)&&(aDept==="All"||c.dept===aDept)&&(aRole==="All"||c.role===aRole)&&(aUser==="All"||(c.rec===aUser||c.assignedTo===aUser));});
       return {name:label,added:mc.length,joined:mc.filter(function(c){return c.stage==="joined";}).length,rejected:mc.filter(function(c){return c.stage==="rejected";}).length};
     }).filter(function(r){return r.added>0;});
-  },[cands,MONTHS_LIST,aLoc,aDept,aRole]);
+  },[cands,MONTHS_LIST,aLoc,aDept,aRole,aUser]);
 
-  var anyAnalyticsFilter=aLoc!=="All"||aDept!=="All"||aRole!=="All"||aMonth!=="All";
-  function clearAnalyticsFilters(){setALoc("All");setADept("All");setARole("All");setAMonth("All");}
+  var anyAnalyticsFilter=aLoc!=="All"||aDept!=="All"||aRole!=="All"||aMonth!=="All"||aUser!=="All";
+  function clearAnalyticsFilters(){setALoc("All");setADept("All");setARole("All");setAMonth("All");setAUser("All");}
 
   function FilterBadge(props){return <span style={{marginLeft:8,fontSize:10,background:"#EFF6FF",color:"#1D4ED8",borderRadius:20,padding:"2px 8px",fontWeight:600}}>filtered</span>;}
   function NoData(){return <div style={{height:200,display:"flex",alignItems:"center",justifyContent:"center",color:"#D1D5DB",fontSize:13}}>No data for selected filters</div>;}
@@ -760,13 +762,18 @@ export default function App() {
                 <option value="All">All Months</option>
                 {MONTHS_LIST.map(function(m){return <option key={m} value={m}>{new Date(m+"-01").toLocaleDateString("en-IN",{month:"long",year:"numeric"})}</option>;})}
               </select>
+              {isAdmin&&<select value={aUser} onChange={function(e){setAUser(e.target.value);}} style={{...inp,width:"auto",flex:"1 1 150px",cursor:"pointer",fontSize:12,borderColor:aUser!=="All"?NAVY:"#D1D5DB",fontWeight:aUser!=="All"?700:400}}>
+                <option value="All">All Users</option>
+                {users.map(function(u){return <option key={u.username} value={u.name}>{u.name}</option>;})}
+              </select>}
               {anyAnalyticsFilter&&<button onClick={clearAnalyticsFilters} style={{background:"#FEF2F2",color:"#DC2626",border:"1px solid #FECACA",borderRadius:20,padding:"5px 14px",fontSize:11,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>✕ Clear all</button>}
             </div>
             {anyAnalyticsFilter&&<div style={{marginTop:10,padding:"7px 12px",background:"#EFF6FF",borderRadius:8,fontSize:12,color:"#1D4ED8",display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
-              <span style={{fontWeight:700}}>{"Showing "+analyticsFiltered.length+" of "+cands.length+" candidates"}</span>
+              <span style={{fontWeight:700}}>{"Showing "+analyticsFiltered.length+" of "+myCands.length+" candidates"}</span>
+              {aUser!=="All"&&<span style={{background:NAVY,color:GOLD,borderRadius:20,padding:"2px 10px",fontSize:11,fontWeight:700}}>👤 {aUser}</span>}
               {aLoc!=="All"&&<span style={{background:"white",borderRadius:20,padding:"2px 10px",fontSize:11}}>📍 {aLoc}</span>}
               {aDept!=="All"&&<span style={{background:"white",borderRadius:20,padding:"2px 10px",fontSize:11}}>🏢 {aDept}</span>}
-              {aRole!=="All"&&<span style={{background:"white",borderRadius:20,padding:"2px 10px",fontSize:11}}>👤 {aRole}</span>}
+              {aRole!=="All"&&<span style={{background:"white",borderRadius:20,padding:"2px 10px",fontSize:11}}>🏷 {aRole}</span>}
               {aMonth!=="All"&&<span style={{background:"white",borderRadius:20,padding:"2px 10px",fontSize:11}}>📅 {new Date(aMonth+"-01").toLocaleDateString("en-IN",{month:"long",year:"numeric"})}</span>}
             </div>}
           </div>
