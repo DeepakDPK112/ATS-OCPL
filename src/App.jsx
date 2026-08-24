@@ -113,8 +113,8 @@ function fmtDate(iso) {
   var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   var dd = String(d.getDate()).padStart(2,"0");
   var mmm = months[d.getMonth()];
-  var yy  = String(d.getFullYear()).slice(-2);
-  return dd + "-" + mmm + "-" + yy;
+  var yyyy = String(d.getFullYear());
+  return dd + "-" + mmm + "-" + yyyy;
 }
 
 function downloadXlsx(filename, sheetName, headers, rows) {
@@ -567,7 +567,7 @@ export default function App() {
       var acts=defaultActivities(onbForm.manager,onbForm.buddy,currentUser.name,onbForm.itContact);
       var extra=customActs.filter(function(a){return a.activity.trim();}).map(function(a,idx){return {id:Date.now()+1000+idx,activity:a.activity.trim(),accountable:a.accountable.trim(),due:a.due,done:false,refNumber:"",completedOn:""};});
       acts=acts.concat(extra);
-      return {id:Date.now()+Math.random(),candidate:c,empId:onbForm.empId.trim(),reportingManager:onbForm.reportingManager.trim(),startDate:onbForm.startDate,manager:onbForm.manager,buddy:onbForm.buddy,generatedAt:new Date().toLocaleDateString("en-IN"),by:currentUser.name,activities:acts};
+      return {id:Date.now()+Math.random(),candidate:c,empId:onbForm.empId.trim(),reportingManager:onbForm.reportingManager.trim(),startDate:onbForm.startDate,manager:onbForm.manager,buddy:onbForm.buddy,generatedAt:fmtDate(new Date().toISOString().split("T")[0]),by:currentUser.name,activities:acts};
     });
     setOnbPlans(function(prev){return prev.concat(plans);});
     setGenerating(false);setShowOnbForm(false);setSelected(new Set());setCustomActs([]);
@@ -701,7 +701,7 @@ export default function App() {
                           <div style={{display:"flex",gap:5,alignItems:"center"}}>
                             {(c.attachments||[]).length>0&&<span style={{background:"#EFF6FF",color:"#1D4ED8",borderRadius:4,padding:"1px 5px",fontSize:10,fontWeight:600}}>{"📎 "+c.attachments.length}</span>}
                             {(c.comments||[]).length>0&&<span style={{background:"#F5F3FF",color:"#7C3AED",borderRadius:4,padding:"1px 5px",fontSize:10,fontWeight:600}}>{"💬 "+c.comments.length}</span>}
-                            <span>{c.applied.slice(5)}</span>
+                            <span>{fmtDate(c.applied)}</span>
                           </div>
                         </div>
                       </div>
@@ -731,7 +731,7 @@ export default function App() {
                     <td style={{padding:"10px 14px"}}><StageBadge stageId={c.stage}/></td>
                     <td style={{padding:"10px 14px"}}>{(c.attachments||[]).length>0?<button onClick={function(){openDetail(c);}} style={{background:"#EFF6FF",color:"#1D4ED8",border:"1px solid #BFDBFE",borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer",fontWeight:600}}>{"📎 "+c.attachments.length}</button>:<span style={{color:"#D1D5DB"}}>—</span>}</td>
                     <td style={{padding:"10px 14px"}}>{(c.comments||[]).length>0?<button onClick={function(){openDetail(c);}} style={{background:"#F5F3FF",color:"#7C3AED",border:"1px solid #DDD6FE",borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer",fontWeight:600}}>{"💬 "+c.comments.length}</button>:<span style={{color:"#D1D5DB"}}>—</span>}</td>
-                    <td style={{padding:"10px 14px",color:"#9CA3AF",fontSize:12}}>{c.applied}</td>
+                    <td style={{padding:"10px 14px",color:"#9CA3AF",fontSize:12}}>{fmtDate(c.applied)}</td>
                     <td style={{padding:"10px 14px",color:"#6B7280"}}>{c.rec||"—"}</td>
                     <td style={{padding:"10px 14px"}}><button onClick={function(){openDetail(c);}} style={{background:NAVY,color:"white",border:"none",borderRadius:6,padding:"4px 12px",fontSize:12,cursor:"pointer",fontWeight:600}}>View</button></td>
                   </tr>
@@ -1513,7 +1513,7 @@ export default function App() {
             return;
           }
           setActErrors(function(p){var n=Object.assign({},p);delete n[id];return n;});
-          updateActs(acts.map(function(a){return a.id===id?Object.assign({},a,{done:true,completedOn:new Date().toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"})}):a;}));
+          updateActs(acts.map(function(a){return a.id===id?Object.assign({},a,{done:true,completedOn:fmtDate(new Date().toISOString().split("T")[0])}):a;}));
         }
         function setField(id,f,v){updateActs(acts.map(function(a){if(a.id!==id)return a;var u={};u[f]=v;return Object.assign({},a,u);}));}
         function remove(id){updateActs(acts.filter(function(a){return a.id!==id;}));}
@@ -1570,7 +1570,7 @@ export default function App() {
 
                       {/* Due date */}
                       {a.done
-                        ?<div style={{fontSize:11,padding:"6px 8px",color:"#9CA3AF"}}>{a.due||"—"}</div>
+                        ?<div style={{fontSize:11,padding:"6px 8px",color:"#9CA3AF"}}>{fmtDate(a.due)||"—"}</div>
                         :<input type="date" value={a.due} onChange={function(e){setField(a.id,"due",e.target.value);}} style={{...inp,padding:"6px 8px",fontSize:11}}/>}
 
                       {/* Completed on */}
@@ -1728,7 +1728,7 @@ export default function App() {
               ["Phone",detail.phone||"—"],
               ["Email",detail.email||"—"],
             ].map(function(m){return <div key={m[0]}><div style={{fontSize:10,fontWeight:700,color:"#9CA3AF",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:3}}>{m[0]}</div><div style={{fontSize:13,color:"#111827",fontWeight:500}}>{m[1]||"—"}</div></div>;})}
-            <div><div style={{fontSize:10,fontWeight:700,color:"#9CA3AF",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:3}}>Applied</div><div style={{fontSize:13,color:"#111827",fontWeight:500}}>{detail.applied||"—"}</div></div>
+            <div><div style={{fontSize:10,fontWeight:700,color:"#9CA3AF",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:3}}>Applied</div><div style={{fontSize:13,color:"#111827",fontWeight:500}}>{fmtDate(detail.applied)||"—"}</div></div>
           </div>
           <div style={{marginBottom:16}}><label style={lbl}>Assigned to (user working on this candidate)</label><input list="assign-users" value={detail.assignedTo!==undefined?detail.assignedTo:(detail.rec||"")} onChange={function(e){setDetail(Object.assign({},detail,{assignedTo:e.target.value}));}} style={inp} placeholder="HR user handling this candidate"/><datalist id="assign-users">{users.map(function(u){return <option key={u.username} value={u.name}/>;})}</datalist></div>
           <div style={{marginBottom:16}}><label style={lbl}>Resume</label><AttachmentsBox attachments={detail.attachments||[]} onChange={function(a){setDetail(Object.assign({},detail,{attachments:a}));}} resumeOnly={true}/></div>
