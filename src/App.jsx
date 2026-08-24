@@ -411,6 +411,21 @@ export default function App() {
     return function(){clearTimeout(timer);};
   },[onbPlans,usersLoaded]);
 
+  // Sync: any candidate with an onboarding plan should be in "joined" stage
+  useEffect(function(){
+    if(!usersLoaded)return;
+    var onboardedIds=new Set(onbPlans.map(function(p){return p.candidate&&p.candidate.id;}));
+    if(!onboardedIds.size)return;
+    setCands(function(prev){
+      var changed=false;
+      var next=prev.map(function(c){
+        if(onboardedIds.has(c.id)&&c.stage!=="joined"){changed=true;return Object.assign({},c,{stage:"joined"});}
+        return c;
+      });
+      return changed?next:prev;
+    });
+  },[onbPlans,usersLoaded]);
+
   async function handleLogoFile(file) {
     setLogoUploading(true);
     try {
@@ -570,6 +585,9 @@ export default function App() {
       return {id:Date.now()+Math.random(),candidate:c,empId:onbForm.empId.trim(),reportingManager:onbForm.reportingManager.trim(),startDate:onbForm.startDate,manager:onbForm.manager,buddy:onbForm.buddy,generatedAt:fmtDate(new Date().toISOString().split("T")[0]),by:currentUser.name,activities:acts};
     });
     setOnbPlans(function(prev){return prev.concat(plans);});
+    // Auto-move onboarded candidates to "joined" stage
+    var onboardedIds=new Set(sel.map(function(c){return c.id;}));
+    setCands(function(prev){return prev.map(function(c){return onboardedIds.has(c.id)?Object.assign({},c,{stage:"joined"}):c;});});
     setGenerating(false);setShowOnbForm(false);setSelected(new Set());setCustomActs([]);
     setOnbForm({empId:"",reportingManager:"",startDate:"",manager:"",buddy:"",itContact:"IT Department"});
     setTab("onboarding");
