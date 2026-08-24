@@ -366,9 +366,9 @@ export default function App() {
 
   useEffect(function(){
     (async function(){
-      try{ var r=await supabase.from('app_settings').select('value').eq('key','ocpl-users').single(); if(r.data)setUsers(JSON.parse(r.data.value)); }catch(e){}
-      try{ var r2=await supabase.from('app_settings').select('value').eq('key','ocpl-logo').single(); if(r2.data)setLogoDataUrl(r2.data.value); }catch(e){}
-      try{ var r3=await supabase.from('app_settings').select('value').eq('key','ocpl-org-settings').single(); if(r3.data){var s=JSON.parse(r3.data.value);if(s.roles)setOrgRoles(s.roles);if(s.depts)setOrgDepts(s.depts);if(s.locs)setOrgLocs(s.locs);if(s.comp)setOrgComp(s.comp);if(s.exp)setOrgExp(s.exp);if(s.sourcing)setOrgSourcing(s.sourcing);} }catch(e){}
+      try{ var r=await supabase.from('app_settings').select('value').eq('key','ocpl-users'); if(r.data&&r.data.length>0)setUsers(JSON.parse(r.data[r.data.length-1].value)); }catch(e){}
+      try{ var r2=await supabase.from('app_settings').select('value').eq('key','ocpl-logo'); if(r2.data&&r2.data.length>0)setLogoDataUrl(r2.data[r2.data.length-1].value); }catch(e){}
+      try{ var r3=await supabase.from('app_settings').select('value').eq('key','ocpl-org-settings'); if(r3.data&&r3.data.length>0){var s=JSON.parse(r3.data[r3.data.length-1].value);if(s.roles)setOrgRoles(s.roles);if(s.depts)setOrgDepts(s.depts);if(s.locs)setOrgLocs(s.locs);if(s.comp)setOrgComp(s.comp);if(s.exp)setOrgExp(s.exp);if(s.sourcing)setOrgSourcing(s.sourcing);} }catch(e){}
       try{ var r4=await supabase.from('candidates').select('data'); if(r4.data&&r4.data.length>0)setCands(r4.data.map(function(row){return row.data;})); }catch(e){}
       try{ var r5=await supabase.from('onboarding_plans').select('data'); if(r5.data&&r5.data.length>0)setOnbPlans(r5.data.map(function(row){return row.data;})); }catch(e){}
       setUsersLoaded(true);
@@ -415,14 +415,14 @@ export default function App() {
         if(window.pdfjsLib){var buf=await file.arrayBuffer();var pdf=await window.pdfjsLib.getDocument({data:buf}).promise;var page=await pdf.getPage(1);var vp=page.getViewport({scale:2});var canvas=document.createElement('canvas');canvas.width=vp.width;canvas.height=vp.height;await page.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise;dataUrl=canvas.toDataURL('image/png');}
       }
       if(!dataUrl){dataUrl=await new Promise(function(res){var r=new FileReader();r.onload=function(e){res(e.target.result);};r.readAsDataURL(file);});}
-      setLogoDataUrl(dataUrl); try{await supabase.from('app_settings').upsert({key:'ocpl-logo',value:dataUrl});}catch(e){}
+      setLogoDataUrl(dataUrl); try{await supabase.from('app_settings').upsert({key:'ocpl-logo',value:dataUrl},{onConflict:'key'});}catch(e){}
     } catch(err){}
     setLogoUploading(false);
   }
 
-  async function persistUsers(next){setUsers(next);try{await supabase.from('app_settings').upsert({key:'ocpl-users',value:JSON.stringify(next)});}catch(e){}}
+  async function persistUsers(next){setUsers(next);try{await supabase.from('app_settings').upsert({key:'ocpl-users',value:JSON.stringify(next)},{onConflict:'key'});}catch(e){}}
   async function persistOrg(roles,depts,locs,comp,exp,sourcing){
-    try{await supabase.from('app_settings').upsert({key:'ocpl-org-settings',value:JSON.stringify({roles,depts,locs,comp,exp,sourcing})});}catch(e){}
+    try{await supabase.from('app_settings').upsert({key:'ocpl-org-settings',value:JSON.stringify({roles,depts,locs,comp,exp,sourcing})},{onConflict:'key'});}catch(e){}
   }
 
   var candsS = useState(INIT); var cands = candsS[0]; var setCands = candsS[1];
