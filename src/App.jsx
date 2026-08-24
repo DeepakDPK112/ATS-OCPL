@@ -370,7 +370,7 @@ export default function App() {
       try{ var r2=await supabase.from('app_settings').select('value').eq('key','ocpl-logo'); if(r2.data&&r2.data.length>0)setLogoDataUrl(r2.data[r2.data.length-1].value); }catch(e){}
       try{ var r3=await supabase.from('app_settings').select('value').eq('key','ocpl-org-settings'); if(r3.data&&r3.data.length>0){var s=JSON.parse(r3.data[r3.data.length-1].value);if(s.roles)setOrgRoles(s.roles);if(s.depts)setOrgDepts(s.depts);if(s.locs)setOrgLocs(s.locs);if(s.comp)setOrgComp(s.comp);if(s.exp)setOrgExp(s.exp);if(s.sourcing)setOrgSourcing(s.sourcing);} }catch(e){}
       try{ var r4=await supabase.from('candidates').select('data'); if(r4.data&&r4.data.length>0)setCands(r4.data.map(function(row){return row.data;})); }catch(e){}
-      try{ var r5=await supabase.from('onboarding_plans').select('data'); if(r5.data&&r5.data.length>0)setOnbPlans(r5.data.map(function(row){return row.data;})); }catch(e){}
+      try{ var r5=await supabase.from('app_settings').select('value').eq('key','ocpl-onboarding-plans'); if(r5.data&&r5.data.length>0)setOnbPlans(JSON.parse(r5.data[r5.data.length-1].value)); }catch(e){}
       setUsersLoaded(true);
     })();
   },[]);
@@ -399,13 +399,12 @@ export default function App() {
     return function(){clearTimeout(timer);};
   },[cands,usersLoaded]);
 
-  // Auto-persist onboarding plans to Supabase whenever they change
+  // Auto-persist onboarding plans to app_settings (same reliable table as users/org)
   useEffect(function(){
     if(!usersLoaded)return;
     var timer=setTimeout(async function(){
       try{
-        var rows=onbPlans.map(function(p){return {id:p.id,data:p};});
-        await supabase.from('onboarding_plans').upsert(rows);
+        await supabase.from('app_settings').upsert({key:'ocpl-onboarding-plans',value:JSON.stringify(onbPlans)},{onConflict:'key'});
       }catch(e){}
     },600);
     return function(){clearTimeout(timer);};
