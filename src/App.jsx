@@ -369,7 +369,7 @@ export default function App() {
       try{ var r=await supabase.from('app_settings').select('value').eq('key','ocpl-users'); if(r.data&&r.data.length>0)setUsers(JSON.parse(r.data[r.data.length-1].value)); }catch(e){}
       try{ var r2=await supabase.from('app_settings').select('value').eq('key','ocpl-logo'); if(r2.data&&r2.data.length>0)setLogoDataUrl(r2.data[r2.data.length-1].value); }catch(e){}
       try{ var r3=await supabase.from('app_settings').select('value').eq('key','ocpl-org-settings'); if(r3.data&&r3.data.length>0){var s=JSON.parse(r3.data[r3.data.length-1].value);if(s.roles)setOrgRoles(s.roles);if(s.depts)setOrgDepts(s.depts);if(s.locs)setOrgLocs(s.locs);if(s.comp)setOrgComp(s.comp);if(s.exp)setOrgExp(s.exp);if(s.sourcing)setOrgSourcing(s.sourcing);} }catch(e){}
-      try{ var r4=await supabase.from('candidates').select('data'); if(r4.data&&r4.data.length>0)setCands(r4.data.map(function(row){return row.data;})); }catch(e){}
+      try{ var r4=await supabase.from('app_settings').select('value').eq('key','ocpl-candidates'); if(r4.data&&r4.data.length>0)setCands(JSON.parse(r4.data[r4.data.length-1].value)); }catch(e){}
       try{ var r5=await supabase.from('app_settings').select('value').eq('key','ocpl-onboarding-plans'); if(r5.data&&r5.data.length>0)setOnbPlans(JSON.parse(r5.data[r5.data.length-1].value)); }catch(e){}
       setUsersLoaded(true);
     })();
@@ -387,13 +387,12 @@ export default function App() {
   var candsS = useState(INIT); var cands = candsS[0]; var setCands = candsS[1];
   var onbPlansS = useState(SAMPLE_ONB_PLANS); var onbPlans = onbPlansS[0]; var setOnbPlans = onbPlansS[1];
 
-  // Auto-persist candidates to Supabase whenever they change
+  // Auto-persist candidates to app_settings (single confirmed-working table)
   useEffect(function(){
     if(!usersLoaded)return;
     var timer=setTimeout(async function(){
       try{
-        var rows=cands.map(function(c){return {id:c.id,data:c};});
-        await supabase.from('candidates').upsert(rows);
+        await supabase.from('app_settings').upsert({key:'ocpl-candidates',value:JSON.stringify(cands)},{onConflict:'key'});
       }catch(e){}
     },600);
     return function(){clearTimeout(timer);};
