@@ -382,6 +382,11 @@ export default function App() {
     document.head.appendChild(s);
   },[]);
 
+  // Declare cands + onbPlans BEFORE their auto-persist effects so the
+  // dependency array sees the real state value (not undefined from var hoisting)
+  var candsS = useState(INIT); var cands = candsS[0]; var setCands = candsS[1];
+  var onbPlansS = useState(SAMPLE_ONB_PLANS); var onbPlans = onbPlansS[0]; var setOnbPlans = onbPlansS[1];
+
   // Auto-persist candidates to Supabase whenever they change
   useEffect(function(){
     if(!usersLoaded)return;
@@ -425,7 +430,6 @@ export default function App() {
     try{await supabase.from('app_settings').upsert({key:'ocpl-org-settings',value:JSON.stringify({roles,depts,locs,comp,exp,sourcing})},{onConflict:'key'});}catch(e){}
   }
 
-  var candsS = useState(INIT); var cands = candsS[0]; var setCands = candsS[1];
   var searchS = useState(""); var search = searchS[0]; var setSearch = searchS[1];
   var fRoleS = useState("All"); var fRole = fRoleS[0]; var setFRole = fRoleS[1];
   var fDeptS = useState("All"); var fDept = fDeptS[0]; var setFDept = fDeptS[1];
@@ -440,7 +444,6 @@ export default function App() {
   var selS = useState(new Set()); var selected = selS[0]; var setSelected = selS[1];
   var sofS = useState(false); var showOnbForm = sofS[0]; var setShowOnbForm = sofS[1];
   var onbFormS = useState({empId:"",reportingManager:"",startDate:"",manager:"",buddy:"",itContact:"IT Department"}); var onbForm = onbFormS[0]; var setOnbForm = onbFormS[1];
-  var onbPlansS = useState(SAMPLE_ONB_PLANS); var onbPlans = onbPlansS[0]; var setOnbPlans = onbPlansS[1];
   var genS = useState(false); var generating = genS[0]; var setGenerating = genS[1];
   var apS = useState(null); var activityPlan = apS[0]; var setActivityPlan = apS[1];
   var aeS = useState({}); var actErrors = aeS[0]; var setActErrors = aeS[1];
